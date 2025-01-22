@@ -3,25 +3,42 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "build:prod": "ts-node scripts/build.ts",
+    "deploy": "ts-node scripts/deploy.ts",
+    "cdk:deploy": "cdk deploy",
+    "cdk:destroy": "cdk destroy"
   },
   "dependencies": {
+    "dotenv": "^16.4.7",
+    "next": "15.1.5",
+    "next-auth": "^4.24.11",
+    "openai": "^4.79.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.1.5"
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
-    "typescript": "^5",
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "postcss": "^8",
-    "tailwindcss": "^3.4.1",
+    "@types/socket.io": "^3.0.1",
+    "autoprefixer": "^10.4.20",
+    "aws-cdk": "^2.0.0",
+    "aws-cdk-lib": "^2.176.0",
     "eslint": "^9",
     "eslint-config-next": "15.1.5",
-    "@eslint/eslintrc": "^3"
+    "postcss": "^8.5.1",
+    "postcss-import": "^16.1.0",
+    "tailwindcss": "^3.4.17",
+    "ts-node": "^10.0.0",
+    "typescript": "^5"
   }
 }
