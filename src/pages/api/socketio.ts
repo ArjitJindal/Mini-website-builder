@@ -10,6 +10,7 @@ import { SiteContent } from "../../types";
 export const config = {
   api: {
     bodyParser: false,
+    externalResolver: true,
   },
 };
 
@@ -82,13 +83,15 @@ export default async function handler(
     const io = new ServerIO(res.socket.server, {
       path: "/api/socketio",
       addTrailingSlash: false,
+      transports: ["websocket", "polling"],
       cors: {
-        origin:
-          process.env.NODE_ENV === "production"
-            ? "https://mini-website-builder-umber.vercel.app"
-            : "http://localhost:3000",
+        origin: "*", // Allow all origins in development
         methods: ["GET", "POST"],
+        credentials: true,
       },
+      allowEIO3: true,
+      pingTimeout: 60000,
+      pingInterval: 25000,
     });
 
     io.on("connection", (socket) => {

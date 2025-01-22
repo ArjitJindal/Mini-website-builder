@@ -26,7 +26,17 @@ export default function Editor() {
       try {
         setIsLoading(true);
         await fetch("/api/socketio");
-        socket = io({ path: "/api/socketio" });
+        socket = io({
+          path: "/api/socketio",
+          addTrailingSlash: false,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          transports: ["websocket", "polling"],
+        });
+
+        socket.on("connect_error", (err) => {
+          console.error("Socket connection error:", err);
+        });
 
         socket.on("connect", () => {
           console.log("Connected to Socket.IO");
