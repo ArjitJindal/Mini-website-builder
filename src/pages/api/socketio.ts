@@ -82,6 +82,13 @@ export default async function handler(
     const io = new ServerIO(res.socket.server, {
       path: "/api/socketio",
       addTrailingSlash: false,
+      cors: {
+        origin:
+          process.env.NODE_ENV === "production"
+            ? "https://mini-website-builder-umber.vercel.app"
+            : "http://localhost:3000",
+        methods: ["GET", "POST"],
+      },
     });
 
     io.on("connection", (socket) => {
