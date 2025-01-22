@@ -147,13 +147,15 @@ Our application uses a hybrid approach optimized for different use cases:
 
 1. **Create a New Site**
 
-   - Visit `/edit/my-first-site` to create a new site
-   - The system will generate initial AI content
+   - Visit the home page at `/`
+   - Enter a site name in the input field (e.g., "my-first-site")
+   - Click "Create" or press Enter
+   - You'll be redirected to the editor page where the system will generate initial AI content
 
 2. **Test Real-time Updates**
 
-   - Open `/my-first-site` in another tab
-   - Make changes in the edit page
+   - Open your site's public URL (e.g., `/my-first-site`) in another tab
+   - Make changes in the editor page
    - Watch updates appear instantly in both tabs
 
 3. **Try Different Commands**
