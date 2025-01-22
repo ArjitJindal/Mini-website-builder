@@ -15,7 +15,6 @@ export interface SiteContent {
 export interface EditRequest {
   siteId: string;
   command: string;
-  timestamp?: number;
 }
 
 export interface Log {
@@ -26,6 +25,8 @@ export interface Log {
 }
 
 export interface CommandResponse {
+  success: boolean;
   message: string;
-  content: SiteContent;
+  content?: SiteContent;
+  error?: string;
 }

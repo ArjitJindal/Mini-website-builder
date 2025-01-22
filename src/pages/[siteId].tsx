@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { formatDate } from "../utils/date-formatter";
-import { ThemeHead } from "../components/ThemeHead";
 
 let socket: Socket;
 
@@ -82,8 +81,6 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
         <meta name="description" content={content.paragraphs[0]} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-
-      <ThemeHead theme={content.theme} />
 
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         <nav className="bg-white border-b border-gray-100 sticky top-0 z-10">
