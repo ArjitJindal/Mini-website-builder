@@ -103,7 +103,7 @@ export default function Editor() {
         socketRef.current = null;
       }
     };
-  }, [siteId]);
+  }, [router, siteId]);
 
   const handleSendMessage = (message: string) => {
     if (!message.trim() || !siteId || !socketRef.current) return;

@@ -4,11 +4,9 @@ import { SiteContent } from "../types";
 import { SitePreview } from "../components/SitePreview";
 import Head from "next/head";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { formatDate } from "../utils/date-formatter";
-
-let socket: Socket;
 
 interface PageProps {
   siteId: string;
@@ -20,67 +18,72 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
   const [lastUpdated, setLastUpdated] = useState(
     formatDate(initialContent.lastUpdated)
   );
-  const [connectionStatus, setConnectionStatus] = useState<
-    "connecting" | "connected" | "disconnected"
-  >("connecting");
+
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     const socketInitializer = async () => {
       try {
-        socket = io({
-          path: "/api/socketio",
-          addTrailingSlash: false,
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-          transports: ["websocket", "polling"],
-        });
-
-        socket.on("connect_error", (err) => {
-          console.error("Socket connection error:", err);
-          setConnectionStatus("disconnected");
-        });
-
-        socket.on("connect", () => {
-          console.log("Published page connected to Socket.IO");
-          setConnectionStatus("connected");
-          socket.emit("join-site", siteId);
-        });
-
-        socket.on("disconnect", () => {
-          setConnectionStatus("disconnected");
-        });
-
-        socket.on("site-content", (updatedContent: SiteContent) => {
-          console.log("Published page received initial content:", {
-            heading: updatedContent.heading,
-            theme: updatedContent.theme,
-            timestamp: new Date().toISOString(),
+        if (!socketRef.current) {
+          const socket = io({
+            path: "/api/socketio",
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 45000,
+            transports: ["websocket"],
+            forceNew: true,
+            auth: {
+              siteId,
+            },
+            withCredentials: true,
+            autoConnect: false,
           });
-          setContent(updatedContent);
-          setLastUpdated(formatDate(updatedContent.lastUpdated));
-        });
 
-        socket.on("content-updated", (updatedContent: SiteContent) => {
-          console.log("Published page received content update:", {
-            heading: updatedContent.heading,
-            theme: updatedContent.theme,
-            timestamp: new Date().toISOString(),
+          socket.on("connect_error", (err) => {
+            console.error("Socket connection error:", err);
           });
-          setContent(updatedContent);
-          setLastUpdated(formatDate(updatedContent.lastUpdated));
-        });
+
+          socket.on("connect", () => {
+            console.log("Published page connected to Socket.IO");
+            socket.emit("join-site", siteId);
+          });
+
+          socket.on("disconnect", () => {});
+
+          socket.on("site-content", (updatedContent: SiteContent) => {
+            console.log("Published page received initial content:", {
+              heading: updatedContent.heading,
+              theme: updatedContent.theme,
+              timestamp: new Date().toISOString(),
+            });
+            setContent(updatedContent);
+            setLastUpdated(formatDate(updatedContent.lastUpdated));
+          });
+
+          socket.on("content-updated", (updatedContent: SiteContent) => {
+            console.log("Published page received content update:", {
+              heading: updatedContent.heading,
+              theme: updatedContent.theme,
+              timestamp: new Date().toISOString(),
+            });
+            setContent(updatedContent);
+            setLastUpdated(formatDate(updatedContent.lastUpdated));
+          });
+          socketRef.current = socket;
+          socket.connect();
+        }
       } catch (error) {
         console.error("Socket initialization error:", error);
-        setConnectionStatus("disconnected");
       }
     };
 
     socketInitializer();
 
     return () => {
-      if (socket) {
-        console.log("Published page disconnecting socket");
-        socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
   }, [siteId]);
@@ -104,19 +107,13 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
                 <div className="flex items-center space-x-2">
                   <span
                     className={`w-2 h-2 rounded-full ${
-                      connectionStatus === "connected"
+                      socketRef.current?.connected
                         ? "bg-green-500"
-                        : connectionStatus === "connecting"
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
+                        : "bg-yellow-500"
                     }`}
                   />
                   <span className="text-sm text-gray-500">
-                    {connectionStatus === "connected"
-                      ? "Live"
-                      : connectionStatus === "connecting"
-                      ? "Connecting..."
-                      : "Offline"}
+                    {socketRef.current?.connected ? "Live" : "Connecting..."}
                   </span>
                 </div>
                 <span className="text-sm text-gray-500">
