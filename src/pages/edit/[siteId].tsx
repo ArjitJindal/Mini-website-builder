@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { SiteContent, Log } from "../../types";
 import { ChatInterface } from "../../components/ChatInterface";
@@ -8,8 +8,6 @@ import Head from "next/head";
 import Link from "next/link";
 import { formatDate } from "@/utils/date-formatter";
 
-let socket: Socket;
-
 export default function Editor() {
   const router = useRouter();
   const { siteId } = router.query;
@@ -17,82 +15,89 @@ export default function Editor() {
   const [siteContent, setSiteContent] = useState<SiteContent | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
 
+  const socketRef = useRef<Socket | null>(null);
+
   useEffect(() => {
     if (!siteId) return;
 
     const socketInitializer = async () => {
       try {
-        socket = io({
-          path: "/api/socketio",
-          addTrailingSlash: false,
-          reconnectionAttempts: 5,
-          reconnectionDelay: 1000,
-          transports: ["websocket", "polling"],
-        });
-
-        socket.on("connect_error", (err) => {
-          console.error("Socket connection error:", err);
-        });
-
-        socket.on("connect", () => {
-          console.log("Connected to Socket.IO");
-          socket.emit("join-site", siteId);
-        });
-
-        socket.on("site-content", (updatedContent: SiteContent) => {
-          console.log("Edit page received initial content:", {
-            heading: updatedContent.heading,
-            theme: updatedContent.theme,
-            timestamp: new Date().toISOString(),
-          });
-          setSiteContent(updatedContent);
-          setLastUpdated(formatDate(updatedContent.lastUpdated));
-        });
-
-        socket.on("content-updated", (updatedContent: SiteContent) => {
-          console.log("Edit page received content update:", {
-            heading: updatedContent.heading,
-            theme: updatedContent.theme,
-            timestamp: new Date().toISOString(),
-          });
-          setSiteContent(updatedContent);
-          setLastUpdated(formatDate(updatedContent.lastUpdated));
-          setLogs((prev) => [
-            ...prev,
+        if (!socketRef.current) {
+          const socket = io(
+            process.env.NEXT_PUBLIC_SITE_URL || window.location.origin,
             {
-              id: crypto.randomUUID(),
-              content: "Site updated successfully",
-              timestamp: Date.now(),
-              type: "system",
-            },
-          ]);
-        });
+              path: "/api/socketio",
+              reconnectionAttempts: 5,
+              reconnectionDelay: 1000,
+              timeout: 45000,
+              transports: ["polling"],
+              forceNew: true,
+              auth: {
+                siteId,
+              },
+              withCredentials: true,
+              autoConnect: false,
+            }
+          );
 
-        socket.on("command-error", (error) => {
-          setLogs((prev) => [
-            ...prev,
-            {
-              id: crypto.randomUUID(),
-              content: error.message,
-              timestamp: Date.now(),
-              type: "system",
-            },
-          ]);
-        });
-      } catch (error) {
-        console.error("Socket initialization error:", error);
-      }
+          socket.on("connect_error", () => {});
+
+          socket.on("connect", () => {
+            socket.emit("join-site", siteId);
+          });
+
+          socket.on("disconnect", () => {});
+
+          socket.on("site-content", (updatedContent: SiteContent) => {
+            setSiteContent(updatedContent);
+            setLastUpdated(formatDate(updatedContent.lastUpdated));
+          });
+
+          socket.on("content-updated", (updatedContent: SiteContent) => {
+            setSiteContent(updatedContent);
+            setLastUpdated(formatDate(updatedContent.lastUpdated));
+            setLogs((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                content: "Site updated successfully",
+                timestamp: Date.now(),
+                type: "system",
+              },
+            ]);
+          });
+
+          socket.on("command-error", (error) => {
+            setLogs((prev) => [
+              ...prev,
+              {
+                id: crypto.randomUUID(),
+                content: error.message,
+                timestamp: Date.now(),
+                type: "system",
+              },
+            ]);
+          });
+
+          socketRef.current = socket;
+          socket.connect();
+        }
+      } catch {}
     };
 
     socketInitializer();
 
     return () => {
-      if (socket) socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
     };
   }, [siteId]);
 
   const handleSendMessage = (message: string) => {
-    if (!message.trim() || !siteId) return;
+    if (!message.trim() || !siteId || !socketRef.current) return;
 
     setLogs((prev) => [
       ...prev,
@@ -104,11 +109,45 @@ export default function Editor() {
       },
     ]);
 
-    socket.emit("send-command", { siteId, command: message });
+    socketRef.current.emit("send-command", { siteId, command: message });
   };
 
   if (!siteContent) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <nav className="bg-white border-b border-gray-100 sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+                <span className="text-gray-400">•</span>
+                <div className="h-5 w-36 bg-gray-200 rounded animate-pulse" />
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="h-6 w-20 bg-gray-200 rounded animate-pulse" />
+                <div className="h-10 w-28 bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex gap-8">
+            <div className="w-1/2">
+              <div className="h-[600px] bg-gray-100 rounded-lg animate-pulse" />
+            </div>
+            <div className="w-1/2">
+              <div className="space-y-4">
+                <div className="h-8 w-3/4 bg-gray-200 rounded animate-pulse" />
+                <div className="h-20 w-full bg-gray-200 rounded animate-pulse" />
+                <div className="h-40 w-full bg-gray-200 rounded animate-pulse" />
+                <div className="h-60 w-full bg-gray-200 rounded animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -150,7 +189,6 @@ export default function Editor() {
           </div>
         </nav>
 
-        {/* Main Content */}
         <main className="container mx-auto px-4 py-8">
           <div className="flex gap-8">
             <div className="w-1/2">
