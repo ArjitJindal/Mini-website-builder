@@ -14,11 +14,21 @@ export default function Editor() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [siteContent, setSiteContent] = useState<SiteContent | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
-
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (!siteId) return;
+
+    // Fetch initial content
+    fetch(`/api/sites/${siteId}`)
+      .then((res) => res.json())
+      .then((content) => {
+        setSiteContent(content);
+        setLastUpdated(formatDate(content.lastUpdated));
+      })
+      .catch(() => {
+        router.push("/404");
+      });
 
     const socketInitializer = async () => {
       try {
@@ -94,7 +104,7 @@ export default function Editor() {
         socketRef.current = null;
       }
     };
-  }, [siteId]);
+  }, [siteId, router]);
 
   const handleSendMessage = (message: string) => {
     if (!message.trim() || !siteId || !socketRef.current) return;
