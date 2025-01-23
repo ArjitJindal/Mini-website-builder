@@ -56,30 +56,10 @@ export function ChatInterface({
   SocketRef,
 }: ChatInterfaceProps) {
   const [message, setMessage] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState<
-    "connecting" | "connected" | "error"
-  >("connecting");
+
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const socket = SocketRef.current;
-  console.log("socket", socket);
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleConnect = () => setConnectionStatus("connected");
-    const handleError = () => setConnectionStatus("error");
-    const handleDisconnect = () => setConnectionStatus("error");
-
-    socket.on("connect", handleConnect);
-    socket.on("connect_error", handleError);
-    socket.on("disconnect", handleDisconnect);
-
-    return () => {
-      socket.off("connect", handleConnect);
-      socket.off("connect_error", handleError);
-      socket.off("disconnect", handleDisconnect);
-    };
-  }, [socket]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -89,20 +69,14 @@ export function ChatInterface({
   }, [logs]);
 
   const handleSend = () => {
-    if (!message.trim() || connectionStatus !== "connected") return;
+    if (!message.trim() || !socket.connected) return;
     onSendMessage(message);
     setMessage("");
   };
 
   const getInputPlaceholder = () => {
-    switch (connectionStatus) {
-      case "connecting":
-        return "Connecting to server...";
-      case "error":
-        return "Connection error. Please refresh the page.";
-      default:
-        return 'Type a command... (e.g., "change heading to Hello World")';
-    }
+    if (!socket.connected) return "Connecting to server...";
+    return 'Type a command... (e.g., "change heading to Hello World")';
   };
 
   const renderHelpText = () => (
@@ -132,19 +106,11 @@ export function ChatInterface({
         <div className="flex items-center mt-1 space-x-2">
           <div
             className={`w-2 h-2 rounded-full ${
-              connectionStatus === "connected"
-                ? "bg-green-500"
-                : connectionStatus === "connecting"
-                ? "bg-yellow-500"
-                : "bg-red-500"
+              socket.connected ? "bg-green-500" : "bg-yellow-500"
             }`}
           />
           <span className="text-sm text-gray-500">
-            {connectionStatus === "connected"
-              ? "Connected"
-              : connectionStatus === "connecting"
-              ? "Connecting..."
-              : "Connection Error"}
+            {socket.connected ? "Connected" : "Connecting..."}
           </span>
         </div>
       </div>
@@ -184,7 +150,7 @@ export function ChatInterface({
           <input
             type="text"
             value={message}
-            disabled={connectionStatus !== "connected"}
+            disabled={!socket.connected}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleSend()}
             placeholder={getInputPlaceholder()}
@@ -192,7 +158,7 @@ export function ChatInterface({
           />
           <button
             onClick={handleSend}
-            disabled={connectionStatus !== "connected" || !message.trim()}
+            disabled={!socket.connected || !message.trim()}
             className="px-6 py-2 bg-blue-600 text-white rounded-lg transition-all duration-200 ease-in-out hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
