@@ -20,7 +20,6 @@ export default function Editor() {
   useEffect(() => {
     if (!siteId) return;
 
-    // Socket.io setup
     const socketInitializer = async () => {
       try {
         socket = io({

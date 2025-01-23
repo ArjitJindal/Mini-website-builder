@@ -20,13 +20,13 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
   const [lastUpdated, setLastUpdated] = useState(
     formatDate(initialContent.lastUpdated)
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<
+    "connecting" | "connected" | "disconnected"
+  >("connecting");
 
   useEffect(() => {
     const socketInitializer = async () => {
       try {
-        setIsLoading(true);
-        await fetch("/api/socketio");
         socket = io({
           path: "/api/socketio",
           addTrailingSlash: false,
@@ -37,11 +37,17 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
 
         socket.on("connect_error", (err) => {
           console.error("Socket connection error:", err);
+          setConnectionStatus("disconnected");
         });
 
         socket.on("connect", () => {
           console.log("Published page connected to Socket.IO");
+          setConnectionStatus("connected");
           socket.emit("join-site", siteId);
+        });
+
+        socket.on("disconnect", () => {
+          setConnectionStatus("disconnected");
         });
 
         socket.on("site-content", (updatedContent: SiteContent) => {
@@ -52,7 +58,6 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
           });
           setContent(updatedContent);
           setLastUpdated(formatDate(updatedContent.lastUpdated));
-          setIsLoading(false);
         });
 
         socket.on("content-updated", (updatedContent: SiteContent) => {
@@ -66,7 +71,7 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
         });
       } catch (error) {
         console.error("Socket initialization error:", error);
-        setIsLoading(false);
+        setConnectionStatus("disconnected");
       }
     };
 
@@ -79,10 +84,6 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
       }
     };
   }, [siteId]);
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <>
@@ -100,6 +101,24 @@ export default function PublishedPage({ siteId, initialContent }: PageProps) {
                 {content.heading}
               </h1>
               <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      connectionStatus === "connected"
+                        ? "bg-green-500"
+                        : connectionStatus === "connecting"
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <span className="text-sm text-gray-500">
+                    {connectionStatus === "connected"
+                      ? "Live"
+                      : connectionStatus === "connecting"
+                      ? "Connecting..."
+                      : "Offline"}
+                  </span>
+                </div>
                 <span className="text-sm text-gray-500">
                   Last updated: {lastUpdated}
                 </span>
