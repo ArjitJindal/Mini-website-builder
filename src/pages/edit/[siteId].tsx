@@ -16,7 +16,6 @@ export default function Editor() {
   const [logs, setLogs] = useState<Log[]>([]);
   const [siteContent, setSiteContent] = useState<SiteContent | null>(null);
   const [lastUpdated, setLastUpdated] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!siteId) return;
@@ -24,8 +23,6 @@ export default function Editor() {
     // Socket.io setup
     const socketInitializer = async () => {
       try {
-        setIsLoading(true);
-        await fetch("/api/socketio");
         socket = io({
           path: "/api/socketio",
           addTrailingSlash: false,
@@ -51,7 +48,6 @@ export default function Editor() {
           });
           setSiteContent(updatedContent);
           setLastUpdated(formatDate(updatedContent.lastUpdated));
-          setIsLoading(false);
         });
 
         socket.on("content-updated", (updatedContent: SiteContent) => {
@@ -86,7 +82,6 @@ export default function Editor() {
         });
       } catch (error) {
         console.error("Socket initialization error:", error);
-        setIsLoading(false);
       }
     };
 
@@ -113,10 +108,6 @@ export default function Editor() {
     socket.emit("send-command", { siteId, command: message });
   };
 
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
   if (!siteContent) {
     return <div>Loading...</div>;
   }
@@ -129,7 +120,6 @@ export default function Editor() {
       </Head>
 
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-        {/* Navigation */}
         <nav className="bg-white border-b border-gray-100 sticky top-0 z-10">
           <div className="container mx-auto px-4 py-4">
             <div className="flex justify-between items-center">

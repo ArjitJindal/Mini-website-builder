@@ -50,7 +50,33 @@ const AVAILABLE_COMMANDS = [
 
 export function ChatInterface({ logs, onSendMessage }: ChatInterfaceProps) {
   const [message, setMessage] = useState("");
+  const [connectionStatus, setConnectionStatus] = useState<
+    "connecting" | "connected" | "error"
+  >("connecting");
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Listen for socket connection status
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const socket = (window as any).socket;
+    if (!socket) return;
+
+    const handleConnect = () => setConnectionStatus("connected");
+    const handleError = () => setConnectionStatus("error");
+    const handleDisconnect = () => setConnectionStatus("error");
+
+    socket.on("connect", handleConnect);
+    socket.on("connect_error", handleError);
+    socket.on("disconnect", handleDisconnect);
+
+    setConnectionStatus(socket.connected ? "connected" : "connecting");
+
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("connect_error", handleError);
+      socket.off("disconnect", handleDisconnect);
+    };
+  }, []);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -60,9 +86,20 @@ export function ChatInterface({ logs, onSendMessage }: ChatInterfaceProps) {
   }, [logs]);
 
   const handleSend = () => {
-    if (!message.trim()) return;
+    if (!message.trim() || connectionStatus !== "connected") return;
     onSendMessage(message);
     setMessage("");
+  };
+
+  const getInputPlaceholder = () => {
+    switch (connectionStatus) {
+      case "connecting":
+        return "Connecting to server...";
+      case "error":
+        return "Connection error. Please refresh the page.";
+      default:
+        return 'Type a command... (e.g., "change heading to Hello World")';
+    }
   };
 
   const renderHelpText = () => (
@@ -86,10 +123,32 @@ export function ChatInterface({ logs, onSendMessage }: ChatInterfaceProps) {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-soft">
+    <div className="flex flex-col h-[calc(100vh-12rem)] bg-white rounded-lg shadow-lg">
+      <div className="p-4 border-b border-gray-100">
+        <h2 className="text-lg font-semibold text-gray-900">Chat Interface</h2>
+        <div className="flex items-center mt-1 space-x-2">
+          <div
+            className={`w-2 h-2 rounded-full ${
+              connectionStatus === "connected"
+                ? "bg-green-500"
+                : connectionStatus === "connecting"
+                ? "bg-yellow-500"
+                : "bg-red-500"
+            }`}
+          />
+          <span className="text-sm text-gray-500">
+            {connectionStatus === "connected"
+              ? "Connected"
+              : connectionStatus === "connecting"
+              ? "Connecting..."
+              : "Connection Error"}
+          </span>
+        </div>
+      </div>
+
       <div
         ref={chatContainerRef}
-        className="h-[calc(100vh-220px)] overflow-y-auto p-6 space-y-4"
+        className="flex-1 overflow-y-auto p-4 space-y-4"
       >
         {/* Command Help */}
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
@@ -100,40 +159,38 @@ export function ChatInterface({ logs, onSendMessage }: ChatInterfaceProps) {
         {logs.map((log) => (
           <div
             key={log.id}
-            className={`chat-message p-4 rounded-lg ${
-              log.type === "user"
-                ? "bg-blue-50 border border-blue-100 ml-auto max-w-[80%]"
-                : "bg-gray-50 border border-gray-100 mr-auto max-w-[80%]"
+            className={`flex ${
+              log.type === "user" ? "justify-end" : "justify-start"
             }`}
           >
-            <p
-              className={`${
-                log.type === "user" ? "text-blue-900" : "text-gray-900"
+            <div
+              className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                log.type === "user"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-900"
               }`}
             >
               {log.content}
-            </p>
-            <span className="text-xs text-gray-500 mt-1.5 block">
-              {new Date(log.timestamp).toLocaleTimeString()}
-            </span>
+            </div>
           </div>
         ))}
       </div>
 
-      {/* Input Area */}
       <div className="p-4 border-t border-gray-100">
         <div className="flex gap-4">
           <input
             type="text"
             value={message}
+            disabled={connectionStatus !== "connected"}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Type a command... (e.g., 'change heading to Hello World')"
-            className="flex-1 px-4 py-2.5 text-gray-900 placeholder-gray-500 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            placeholder={getInputPlaceholder()}
+            className="flex-1 px-4 py-2.5 text-gray-900 placeholder-gray-500 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={handleSend}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg transition-all duration-200 ease-in-out hover:bg-blue-700"
+            disabled={connectionStatus !== "connected" || !message.trim()}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg transition-all duration-200 ease-in-out hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Send
           </button>
