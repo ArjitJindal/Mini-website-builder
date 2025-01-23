@@ -4,6 +4,8 @@ import { Log } from "../types";
 interface ChatInterfaceProps {
   logs: Log[];
   onSendMessage: (message: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  SocketRef: any;
 }
 
 const AVAILABLE_COMMANDS = [
@@ -48,17 +50,20 @@ const AVAILABLE_COMMANDS = [
   },
 ];
 
-export function ChatInterface({ logs, onSendMessage }: ChatInterfaceProps) {
+export function ChatInterface({
+  logs,
+  onSendMessage,
+  SocketRef,
+}: ChatInterfaceProps) {
   const [message, setMessage] = useState("");
   const [connectionStatus, setConnectionStatus] = useState<
     "connecting" | "connected" | "error"
   >("connecting");
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Listen for socket connection status
+  const socket = SocketRef.current;
+  console.log("socket", socket);
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const socket = (window as any).socket;
     if (!socket) return;
 
     const handleConnect = () => setConnectionStatus("connected");
@@ -69,14 +74,12 @@ export function ChatInterface({ logs, onSendMessage }: ChatInterfaceProps) {
     socket.on("connect_error", handleError);
     socket.on("disconnect", handleDisconnect);
 
-    setConnectionStatus(socket.connected ? "connected" : "connecting");
-
     return () => {
       socket.off("connect", handleConnect);
       socket.off("connect_error", handleError);
       socket.off("disconnect", handleDisconnect);
     };
-  }, []);
+  }, [socket]);
 
   useEffect(() => {
     if (chatContainerRef.current) {

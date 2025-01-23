@@ -33,22 +33,19 @@ export default function Editor() {
     const socketInitializer = async () => {
       try {
         if (!socketRef.current) {
-          const socket = io(
-            process.env.NEXT_PUBLIC_SITE_URL || window.location.origin,
-            {
-              path: "/api/socketio",
-              reconnectionAttempts: 5,
-              reconnectionDelay: 1000,
-              timeout: 45000,
-              transports: ["polling"],
-              forceNew: true,
-              auth: {
-                siteId,
-              },
-              withCredentials: true,
-              autoConnect: false,
-            }
-          );
+          const socket = io({
+            path: "/api/socketio",
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 45000,
+            transports: ["websocket"],
+            forceNew: true,
+            auth: {
+              siteId,
+            },
+            withCredentials: true,
+            autoConnect: false,
+          });
 
           socket.on("connect_error", () => {});
 
@@ -92,7 +89,9 @@ export default function Editor() {
           socketRef.current = socket;
           socket.connect();
         }
-      } catch {}
+      } catch (error) {
+        console.error("Socket initialization error:", error);
+      }
     };
 
     socketInitializer();
@@ -104,7 +103,7 @@ export default function Editor() {
         socketRef.current = null;
       }
     };
-  }, [siteId, router]);
+  }, [siteId]);
 
   const handleSendMessage = (message: string) => {
     if (!message.trim() || !siteId || !socketRef.current) return;
@@ -202,7 +201,11 @@ export default function Editor() {
         <main className="container mx-auto px-4 py-8">
           <div className="flex gap-8">
             <div className="w-1/2">
-              <ChatInterface logs={logs} onSendMessage={handleSendMessage} />
+              <ChatInterface
+                logs={logs}
+                onSendMessage={handleSendMessage}
+                SocketRef={socketRef}
+              />
             </div>
             <div className="w-1/2">
               <SitePreview content={siteContent} />
